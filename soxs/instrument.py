@@ -405,9 +405,10 @@ def perform_dither(t, dither_dict):
     return x_offset, y_offset
 
 
-def generate_events(input_events, exp_time, instrument, sky_center, 
-                    no_dither=False, dither_params=None, 
-                    roll_angle=0.0, subpixel_res=False, prng=None):
+def generate_events(input_events, exp_time, instrument, sky_center,
+                    no_dither=False, dither_params=None,
+                    roll_angle=0.0, subpixel_res=False, source_id=None,
+                    prng=None):
     """
     Take unconvolved events and convolve them with instrumental responses. This 
     function does the following:
@@ -462,19 +463,24 @@ def generate_events(input_events, exp_time, instrument, sky_center,
     exp_time = parse_value(exp_time, "s")
     roll_angle = parse_value(roll_angle, "deg")
     prng = parse_prng(prng)
+    if source_id is not None:
+        source_id = ensure_numpy_array(source_id).astype("int")-1
     if isinstance(input_events, dict):
         parameters = {}
         for key in ["flux", "emin", "emax", "sources"]:
             parameters[key] = input_events[key]
         event_list = []
         for i in range(len(parameters["flux"])):
+            if source_id is not None and i not in source_id:
+                continue
             edict = {}
             for key in ["ra", "dec", "energy"]:
                 edict[key] = input_events[key][i]
             event_list.append(edict)
     elif isinstance(input_events, string_types):
         # Assume this is a SIMPUT catalog
-        event_list, parameters = read_simput_catalog(input_events)
+        event_list, parameters = read_simput_catalog(input_events,
+                                                     source_id=source_id)
 
     try:
         instrument_spec = instrument_registry[instrument]
@@ -812,6 +818,7 @@ def make_background(exp_time, instrument, sky_center, foreground=True,
 
     return events, event_params
 
+
 def make_background_file(out_file, exp_time, instrument, sky_center,
                          overwrite=False, foreground=True, instr_bkgnd=True,
                          ptsrc_bkgnd=True, no_dither=False, dither_params=None,
@@ -878,12 +885,13 @@ def make_background_file(out_file, exp_time, instrument, sky_center,
                                            nH=nH, prng=prng)
     write_event_file(events, event_params, out_file, overwrite=overwrite)
 
+
 def instrument_simulator(input_events, out_file, exp_time, instrument,
-                         sky_center, overwrite=False, instr_bkgnd=True, 
-                         foreground=True, ptsrc_bkgnd=True, 
-                         bkgnd_file=None, no_dither=False, 
-                         dither_params=None, roll_angle=0.0, 
-                         subpixel_res=False, prng=None):
+                         sky_center, overwrite=False, instr_bkgnd=True,
+                         foreground=True, ptsrc_bkgnd=True,
+                         bkgnd_file=None, no_dither=False,
+                         dither_params=None, roll_angle=0.0,
+                         subpixel_res=False, source_id=None, prng=None):
     """
     Take unconvolved events and create an event file from them. This
     function calls generate_events to do the following:
@@ -964,7 +972,7 @@ def instrument_simulator(input_events, out_file, exp_time, instrument,
     events, event_params = generate_events(input_events, exp_time, instrument, sky_center,
                                            no_dither=no_dither, dither_params=dither_params, 
                                            roll_angle=roll_angle, subpixel_res=subpixel_res, 
-                                           prng=prng)
+                                           prng=prng, source_id=source_id)
     # If the user wants backgrounds, either make the background or add an already existing
     # background event file. It may be necessary to reproject events to a new coordinate system.
     if bkgnd_file is None:

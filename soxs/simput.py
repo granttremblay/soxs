@@ -6,7 +6,8 @@ from soxs.utils import parse_prng, parse_value, \
 from soxs.spatial import construct_wcs
 from astropy.units import Quantity
 
-def read_simput_catalog(simput_file):
+
+def read_simput_catalog(simput_file, source_id=None):
     r"""
     Read events from a SIMPUT catalog. This will read 
     all of the sources in the catalog.
@@ -26,14 +27,22 @@ def read_simput_catalog(simput_file):
     parameters = {}
     simput_dir = os.path.split(os.path.abspath(simput_file))[0]
     f_simput = pyfits.open(simput_file)
-    parameters["flux"] = f_simput["src_cat"].data["flux"]
-    parameters["emin"] = f_simput["src_cat"].data["e_min"]
-    parameters["emax"] = f_simput["src_cat"].data["e_max"]
-    parameters["sources"] = f_simput["src_cat"].data["src_name"]
-    phlist_files = [file.split("[")[0] for file in 
-                    f_simput["src_cat"].data["spectrum"]]
+    if source_id is None:
+        idxs = slice(None, None, None)
+    else:
+        idxs = source_id
+    cat_data = f_simput["src_cat"].data
+    parameters["flux"] = np.atleast_1d(cat_data["flux"][idxs])
+    parameters["emin"] = np.atleast_1d(cat_data["e_min"][idxs])
+    parameters["emax"] = np.atleast_1d(cat_data["e_max"][idxs])
+    parameters["sources"] = np.atleast_1d(cat_data["src_name"][idxs])
+    phlist_files = []
+    for i, file in enumerate(cat_data["spectrum"]):
+        if source_id is not None and i not in source_id:
+            continue
+        phlist_files.append(file.split("[")[0])
     f_simput.close()
-    for phlist_file in phlist_files:
+    for i, phlist_file in enumerate(phlist_files):
         f_phlist = pyfits.open(os.path.join(simput_dir, phlist_file))
         evt = {}
         for key in ["ra", "dec", "energy"]:
@@ -41,6 +50,7 @@ def read_simput_catalog(simput_file):
         f_phlist.close()
         events.append(evt)
     return events, parameters
+
 
 def handle_simput_catalog(simput_prefix, phfiles, flux, emin, emax, 
                           src_names, append, overwrite):
@@ -123,6 +133,7 @@ def handle_simput_catalog(simput_prefix, phfiles, flux, emin, emax,
 
     wrhdu.writeto(simputfile, overwrite=(overwrite or append))
 
+
 def write_photon_list(simput_prefix, phlist_prefix, flux, ra, dec, energy,
                       append=False, overwrite=False):
     r"""
@@ -186,6 +197,7 @@ def write_photon_list(simput_prefix, phlist_prefix, flux, ra, dec, energy,
 
     handle_simput_catalog(simput_prefix, [phfile], [flux], [emin], 
                           [emax], [phlist_prefix], append, overwrite)
+
 
 class SimputCatalog(object):
 
@@ -298,6 +310,7 @@ class SimputCatalog(object):
             The photon list to append to this catalog.
         """
         self.photon_lists.append(photon_list)
+
 
 class PhotonList(object):
 
