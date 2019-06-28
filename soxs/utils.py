@@ -173,9 +173,9 @@ def line_width_equiv(rest):
 class DummyPbar(object):
     def __init__(self):
         pass
-    
+
     def update(self, *args, **kwargs):
         pass
-    
+
     def close(self):
         pass
