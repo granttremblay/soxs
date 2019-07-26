@@ -23,7 +23,7 @@ setup(name='soxs',
       url='https://github.com/XRStools/soxs/',
       setup_requires=["numpy","cython>=0.24"],
       install_requires=["six","numpy","astropy>=2.0","tqdm",
-                        "h5py","scipy","pyyaml","pyregion"],
+                        "h5py","scipy","pyyaml","regions"],
       include_package_data=True,
       scripts=scripts,
       classifiers=[
